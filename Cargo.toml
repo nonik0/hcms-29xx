@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Nick Brown <nick@altonimb.us>"]
 categories = ["embedded", "no-std"]
-description = "Driver for HCMS-29XX and HCMS-39XX display ICs"
+description = "Platform agnostic driver for HCMS-29XX and HCMS-39XX display ICs"
+keywords = ["embedded-hal-driver", "no-std"]
 license = "MIT"
 repository = "https://github.com/nonik0/hcms-29xx"
 readme = "README.md"
@@ -22,6 +23,6 @@ version = "=1.0.79"
 #[[example]]
 #name = "arduino-uno"
 
-#[dependencies.arduino-hal]
+#[dev-dependencies.arduino-hal]
 #path = "../../arduino-hal/"
 #features = ["arduino-uno"]
