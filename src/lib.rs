@@ -1,15 +1,25 @@
 #![no_std]
 
 pub mod constants;
-pub mod error;
 mod font5x7;
 
 // local crate
 use constants::control_word_0::current;
-use error::Hcms29xxErr;
 
 use core::cell::RefCell;
 use embedded_hal::digital::{ErrorType, OutputPin};
+
+#[derive(Debug)]
+pub enum Hcms29xxError<PinErr> {
+    PinNotConfigured,
+    DataPinError(PinErr),
+    RsPinError(PinErr),
+    ClkPinError(PinErr),
+    CePinError(PinErr),
+    BlankPinError(PinErr),
+    OscSelPinError(PinErr),
+    ResetPinError(PinErr),
+}
 
 pub struct Hcms29xx<
     DataPin,
@@ -41,30 +51,25 @@ pub struct Hcms29xx<
     font_ascii_start_index: u8,
 }
 
-impl<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin, const NUM_CHARS: usize> ErrorType
-    for Hcms29xx<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin, NUM_CHARS>
+impl<
+        DataPin,
+        RsPin,
+        ClkPin,
+        CePin,
+        BlankPin,
+        OscSelPin,
+        ResetPin,
+        PinErr,
+        const NUM_CHARS: usize,
+    > Hcms29xx<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin, NUM_CHARS>
 where
-    DataPin: OutputPin,
-    RsPin: OutputPin,
-    ClkPin: OutputPin,
-    CePin: OutputPin,
-    BlankPin: OutputPin,
-    OscSelPin: OutputPin,
-    ResetPin: OutputPin,
-{
-    type Error = Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>;
-}
-
-impl<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin, const NUM_CHARS: usize>
-    Hcms29xx<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin, NUM_CHARS>
-where
-    DataPin: OutputPin,
-    RsPin: OutputPin,
-    ClkPin: OutputPin,
-    CePin: OutputPin,
-    BlankPin: OutputPin,
-    OscSelPin: OutputPin,
-    ResetPin: OutputPin,
+    DataPin: OutputPin + ErrorType<Error = PinErr>,
+    RsPin: OutputPin + ErrorType<Error = PinErr>,
+    ClkPin: OutputPin + ErrorType<Error = PinErr>,
+    CePin: OutputPin + ErrorType<Error = PinErr>,
+    BlankPin: OutputPin + ErrorType<Error = PinErr>,
+    OscSelPin: OutputPin + ErrorType<Error = PinErr>,
+    ResetPin: OutputPin + ErrorType<Error = PinErr>,
 {
     pub fn new(
         data: DataPin,
@@ -74,8 +79,7 @@ where
         blank: Option<BlankPin>,
         osc_sel: Option<OscSelPin>,
         reset: Option<ResetPin>,
-    ) -> Result<Self, Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>>
-    {
+    ) -> Result<Self, Hcms29xxError<PinErr>> {
         let data_ref_cell = RefCell::new(data);
         let rs_ref_cell = RefCell::new(rs);
         let clk_ref_cell = RefCell::new(clk);
@@ -84,17 +88,32 @@ where
         let osc_sel_ref_cell = osc_sel.map(RefCell::new);
         let reset_ref_cell = reset.map(RefCell::new);
 
-        data_ref_cell.borrow_mut().set_low()?;
-        ce_ref_cell.borrow_mut().set_high()?;
+        data_ref_cell
+            .borrow_mut()
+            .set_low()
+            .map_err(Hcms29xxError::DataPinError)?;
+        ce_ref_cell
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::CePinError)?;
         if let Some(ref blank) = blank_ref_cell {
-            blank.borrow_mut().set_high()?;
+            blank
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::BlankPinError)?;
         }
         // default to internal oscillator, user can set ext osc if needed
         if let Some(ref osc_sel) = osc_sel_ref_cell {
-            osc_sel.borrow_mut().set_high()?;
+            osc_sel
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::OscSelPinError)?;
         }
         if let Some(ref reset) = reset_ref_cell {
-            reset.borrow_mut().set_high()?;
+            reset
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::ResetPinError)?;
         }
 
         Ok(Hcms29xx {
@@ -111,9 +130,7 @@ where
         })
     }
 
-    pub fn begin(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn begin(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.clear()?;
 
         self.update_control_word(
@@ -128,9 +145,7 @@ where
         Ok(())
     }
 
-    pub fn clear(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn clear(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
         for _ in 0..NUM_CHARS * constants::CHAR_WIDTH {
             self.send_byte(0x00)?;
@@ -139,10 +154,7 @@ where
         Ok(())
     }
 
-    pub fn print_c_string(
-        &mut self,
-        c_str: &[u8],
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn print_c_string(&mut self, c_str: &[u8]) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
         for i in 0..NUM_CHARS {
             if i >= c_str.len() || c_str[i] < self.font_ascii_start_index {
@@ -158,10 +170,7 @@ where
         Ok(())
     }
 
-    pub fn print_u32(
-        &mut self,
-        value: u32,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn print_u32(&mut self, value: u32) -> Result<(), Hcms29xxError<PinErr>> {
         let mut buf = [0; 10]; // u32 max base-10 digits
 
         let mut value = value;
@@ -178,58 +187,57 @@ where
         Ok(())
     }
 
-    pub fn display_blank(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn display_blank(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref blank) = self.blank {
-            blank.borrow_mut().set_high()?;
+            blank
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::BlankPinError)?;
         } else {
-            return Err(error::Hcms29xxError::PinNotConfigured);
+            return Err(Hcms29xxError::PinNotConfigured);
         }
         Ok(())
     }
 
-    pub fn display_sleep(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn display_sleep(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.update_control_word(self.control_word_0 & !constants::control_word_0::WAKE_BIT)?;
         Ok(())
     }
 
-    pub fn display_wake(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn display_wake(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.update_control_word(self.control_word_0 | constants::control_word_0::WAKE_BIT)?;
         Ok(())
     }
 
-    pub fn display_unblank(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn display_unblank(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref blank) = self.blank {
-            blank.borrow_mut().set_low()?;
+            blank
+                .borrow_mut()
+                .set_low()
+                .map_err(Hcms29xxError::BlankPinError)?;
         } else {
-            return Err(error::Hcms29xxError::PinNotConfigured);
+            return Err(Hcms29xxError::PinNotConfigured);
         }
         Ok(())
     }
 
-    pub fn reset(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn reset(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref reset) = self.reset {
-            reset.borrow_mut().set_low()?;
-            reset.borrow_mut().set_high()?;
+            reset
+                .borrow_mut()
+                .set_low()
+                .map_err(Hcms29xxError::ResetPinError)?;
+            reset
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::ResetPinError)?;
         } else {
-            return Err(error::Hcms29xxError::PinNotConfigured);
+            return Err(Hcms29xxError::PinNotConfigured);
         }
         Ok(())
     }
 
-    pub fn set_brightness(
-        &mut self,
-        brightness: u8,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn set_brightness(&mut self, brightness: u8) -> Result<(), Hcms29xxError<PinErr>> {
         self.update_control_word(
             (self.control_word_0 & !constants::control_word_0::BRIGHTNESS_MASK)
                 | (brightness & constants::control_word_0::BRIGHTNESS_MASK),
@@ -237,10 +245,7 @@ where
         Ok(())
     }
 
-    pub fn set_current(
-        &mut self,
-        current: u8,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn set_current(&mut self, current: u8) -> Result<(), Hcms29xxError<PinErr>> {
         let current = match current {
             0 => current::MAX_4_0MA,
             1 => current::MAX_6_4MA,
@@ -255,46 +260,41 @@ where
         Ok(())
     }
 
-    pub fn set_ext_osc(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn set_ext_osc(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref osc_sel) = self.osc_sel {
-            osc_sel.borrow_mut().set_low()?;
+            osc_sel
+                .borrow_mut()
+                .set_low()
+                .map_err(Hcms29xxError::OscSelPinError)?;
         } else {
-            return Err(error::Hcms29xxError::PinNotConfigured);
+            return Err(Hcms29xxError::PinNotConfigured);
         }
         Ok(())
     }
 
-    pub fn set_int_osc(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn set_int_osc(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref osc_sel) = self.osc_sel {
-            osc_sel.borrow_mut().set_high()?;
+            osc_sel
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::OscSelPinError)?;
         } else {
-            return Err(error::Hcms29xxError::PinNotConfigured);
+            return Err(Hcms29xxError::PinNotConfigured);
         }
         Ok(())
     }
 
-    pub fn set_serial_data_out(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn set_serial_data_out(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.update_control_word(self.control_word_1 & !constants::control_word_1::DATA_OUT_BIT)?;
         Ok(())
     }
 
-    pub fn set_simultaneous_data_out(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    pub fn set_simultaneous_data_out(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.update_control_word(self.control_word_1 | constants::control_word_1::DATA_OUT_BIT)?;
         Ok(())
     }
 
-    fn update_control_word(
-        &mut self,
-        control_word: u8,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    fn update_control_word(&mut self, control_word: u8) -> Result<(), Hcms29xxError<PinErr>> {
         // read current data out mode before potentially changing it
         let times_to_send = if (self.control_word_1 & constants::control_word_1::DATA_OUT_BIT) != 0
         {
@@ -318,45 +318,72 @@ where
         Ok(())
     }
 
-    fn set_dot_data(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
-        self.clk.borrow_mut().set_high()?;
-        self.rs.borrow_mut().set_low()?;
-        self.ce.borrow_mut().set_low()?;
+    fn set_dot_data(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+        self.clk
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::ClkPinError)?;
+        self.rs
+            .borrow_mut()
+            .set_low()
+            .map_err(Hcms29xxError::RsPinError)?;
+        self.ce
+            .borrow_mut()
+            .set_low()
+            .map_err(Hcms29xxError::CePinError)?;
         Ok(())
     }
 
-    fn set_control_data(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
-        self.clk.borrow_mut().set_high()?;
-        self.rs.borrow_mut().set_high()?;
-        self.ce.borrow_mut().set_low()?;
+    fn set_control_data(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+        self.clk
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::ClkPinError)?;
+        self.rs
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::RsPinError)?;
+        self.ce
+            .borrow_mut()
+            .set_low()
+            .map_err(Hcms29xxError::CePinError)?;
         Ok(())
     }
 
-    fn send_byte(
-        &mut self,
-        byte: u8,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
+    fn send_byte(&mut self, byte: u8) -> Result<(), Hcms29xxError<PinErr>> {
         for i in 0..8 {
-            self.clk.borrow_mut().set_low()?;
+            self.clk
+                .borrow_mut()
+                .set_low()
+                .map_err(Hcms29xxError::ClkPinError)?;
             if (byte & (1 << (7 - i))) != 0 {
-                self.data.borrow_mut().set_high()?;
+                self.data
+                    .borrow_mut()
+                    .set_high()
+                    .map_err(Hcms29xxError::DataPinError)?;
             } else {
-                self.data.borrow_mut().set_low()?;
+                self.data
+                    .borrow_mut()
+                    .set_low()
+                    .map_err(Hcms29xxError::DataPinError)?;
             }
-            self.clk.borrow_mut().set_high()?;
+            self.clk
+                .borrow_mut()
+                .set_high()
+                .map_err(Hcms29xxError::ClkPinError)?;
         }
         Ok(())
     }
 
-    fn end_transfer(
-        &mut self,
-    ) -> Result<(), Hcms29xxErr<DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin>> {
-        self.ce.borrow_mut().set_high()?;
-        self.clk.borrow_mut().set_low()?;
+    fn end_transfer(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+        self.ce
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::CePinError)?;
+        self.clk
+            .borrow_mut()
+            .set_low()
+            .map_err(Hcms29xxError::ClkPinError)?;
         Ok(())
     }
 }
