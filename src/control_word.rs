@@ -6,21 +6,27 @@ pub const DEVICE_CHARS: usize = 4;
 pub struct ControlWord0(u8);
 
 impl ControlWord0 {
+    pub const WORD_SELECT_BIT: u8 = 0b1000_0000; // MSB is 1 for control word 1
     pub const WAKE_BIT: u8 = 0b0100_0000;
     pub const PEAK_CURRENT_MASK: u8 = 0b0011_0000;
     pub const BRIGHTNESS_MASK: u8 = 0b0000_1111;
+    pub const BRIGHTNESS_DEFAULT: u8 = 0b0000_1100;
 
     pub fn new() -> Self {
-        ControlWord0(0b0000_0000) // MSB is always 0
+        let mut word = ControlWord0(Self::WORD_SELECT_BIT); // MSB is always 0
+        word.set_brightness_bits(Self::BRIGHTNESS_DEFAULT);
+        word.set_peak_current_bits(PeakCurrent::default());
+        word.set_wake_bit(SleepMode::default());
+        word
     }
 
-    pub fn set_brightness_bits(&mut self, bits: u8) {
+    pub fn set_brightness_bits(&mut self, brightness: u8) {
         // just truncate the bits rather than enforce or check for a max value
-        self.0 = (self.0 & !Self::BRIGHTNESS_MASK) | (bits & Self::BRIGHTNESS_MASK);
+        self.0 = (self.0 & !Self::BRIGHTNESS_MASK) | (brightness & Self::BRIGHTNESS_MASK);
     }
 
-    pub fn set_peak_current_bits(&mut self, bits: PeakCurrent) {
-        self.0 = (self.0 & !Self::PEAK_CURRENT_MASK) | bits as u8;
+    pub fn set_peak_current_bits(&mut self, current: PeakCurrent) {
+        self.0 = (self.0 & !Self::PEAK_CURRENT_MASK) | current as u8;
     }
 
     pub fn set_wake_bit(&mut self, mode: SleepMode) {
@@ -37,6 +43,12 @@ pub enum SleepMode {
     Normal = 0b0100_0000,
 }
 
+impl Default for SleepMode {
+    fn default() -> Self {
+        SleepMode::Normal
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PeakCurrent {
     Max4_0Ma = 0b0010_0000,
@@ -45,9 +57,15 @@ pub enum PeakCurrent {
     Max12_8Ma = 0b0011_0000,
 }
 
-impl PeakCurrent {
-    pub fn bitmask(&self) -> u8 {
-        *self as u8
+// impl PeakCurrent {
+//     pub fn bitmask(&self) -> u8 {
+//         *self as u8
+//     }
+// }
+
+impl Default for PeakCurrent {
+    fn default() -> Self {
+        PeakCurrent::Max12_8Ma
     }
 }
 
@@ -55,25 +73,22 @@ impl PeakCurrent {
 pub struct ControlWord1(u8);
 
 impl ControlWord1 {
+    pub const WORD_SELECT_BIT: u8 = 0b1000_0000; // MSB is 1 for control word 1
     pub const DATA_OUT_BIT: u8 = 0b0000_0001;
     pub const EXT_OSC_PRESCALER_BIT: u8 = 0b0000_0010;
 
     pub fn new() -> Self {
-        ControlWord1(0b1000_0000) // MSB is always 1
+        let mut word = ControlWord1(Self::WORD_SELECT_BIT);
+        word.set_data_out_mode_bit(DataOutMode::default());
+        word.set_ext_osc_prescaler_bit(ExtOscPrescaler::default());
+        word
     }
 
-    pub fn data_out_mode(&self) -> DataOutModeBit {
-        match self.0 & Self::DATA_OUT_BIT {
-            0 => DataOutModeBit::Serial,
-            _ => DataOutModeBit::Simultaneous,
-        }
-    }
-
-    pub fn set_data_out_mode_bit(&mut self, bit: DataOutModeBit) {
+    pub fn set_data_out_mode_bit(&mut self, bit: DataOutMode) {
         self.0 = (self.0 & !Self::DATA_OUT_BIT) | (bit as u8);
     }
 
-    pub fn set_ext_osc_prescaler_bit(&mut self, bit: ExtOscPrescalerBit) {
+    pub fn set_ext_osc_prescaler_bit(&mut self, bit: ExtOscPrescaler) {
         self.0 = (self.0 & !Self::EXT_OSC_PRESCALER_BIT) | (bit as u8);
     }
 
@@ -83,25 +98,25 @@ impl ControlWord1 {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DataOutModeBit {
+pub enum DataOutMode {
     Serial = 0b0000_0000,
     Simultaneous = 0b0000_0001,
 }
 
-impl Default for DataOutModeBit {
+impl Default for DataOutMode {
     fn default() -> Self {
-        DataOutModeBit::Serial
+        DataOutMode::Serial
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExtOscPrescalerBit {
+pub enum ExtOscPrescaler {
     Clock1 = 0b0000_0000,
     Clock8 = 0b0000_0001,
 }
 
-impl Default for ExtOscPrescalerBit {
+impl Default for ExtOscPrescaler {
     fn default() -> Self {
-        ExtOscPrescalerBit::Clock1
+        ExtOscPrescaler::Clock1
     }
 }

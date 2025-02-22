@@ -1,9 +1,12 @@
 #![no_std]
 
-pub mod control;
+
+mod control_word;
 mod font5x7;
 
-use crate::control::*;
+pub use control_word::PeakCurrent;
+
+use control_word::*;
 use core::cell::RefCell;
 use embedded_hal::digital::{ErrorType, OutputPin};
 
@@ -46,7 +49,8 @@ pub struct Hcms29xx<
     reset: Option<RefCell<ResetPin>>,
     control_word_0: ControlWord0,
     control_word_1: ControlWord1,
-    data_out_mode: DataOutModeBit, // we keep track of just this to avoid more bookkeeping when updating local state of control word before updating
+    // state kept locally to simplify/reduce overall code size
+    data_out_mode: DataOutMode,
     font_ascii_start_index: u8,
 }
 
@@ -125,29 +129,29 @@ where
             reset: reset_ref_cell,
             control_word_0: ControlWord0::new(),
             control_word_1: ControlWord1::new(),
-            data_out_mode: DataOutModeBit::Serial,
+            data_out_mode: DataOutMode::Serial,
             font_ascii_start_index: font5x7::FONT5X7.load_at(0) - 1,
         })
     }
 
-    pub fn begin(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.clear()?;
+    // pub fn begin(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+    //     self.clear()?;
 
-        self.update_control_word(
-            control::control_word_0::WAKE_BIT
-                | control::control_word_0::DEFAULT_CURRENT
-                | control::control_word_0::DEFAULT_BRIGHTNESS,
-        )?;
-        self.update_control_word(
-            control::CONTROL_WORD_SELECT_BIT | control::control_word_1::DEFAULT_DATA_OUT_MODE,
-        )?;
+    //     self.update_control_word(
+    //         control::control_word_0::WAKE_BIT
+    //             | control::control_word_0::DEFAULT_CURRENT
+    //             | control::control_word_0::DEFAULT_BRIGHTNESS,
+    //     )?;
+    //     self.update_control_word(
+    //         control::CONTROL_WORD_SELECT_BIT | control::control_word_1::DEFAULT_DATA_OUT_MODE,
+    //     )?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn clear(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
-        for _ in 0..NUM_CHARS * control::CHAR_WIDTH {
+        for _ in 0..NUM_CHARS * control_word::CHAR_WIDTH {
             self.send_byte(0x00)?;
         }
         self.end_transfer()?;
@@ -161,8 +165,8 @@ where
                 break;
             }
             let char_start_index: usize =
-                (c_str[i] - self.font_ascii_start_index) as usize * control::CHAR_WIDTH;
-            for j in 0..control::CHAR_WIDTH {
+                (c_str[i] - self.font_ascii_start_index) as usize * control_word::CHAR_WIDTH;
+            for j in 0..control_word::CHAR_WIDTH {
                 self.send_byte(font5x7::FONT5X7.load_at(char_start_index + j))?;
             }
         }
@@ -292,24 +296,32 @@ where
     }
 
     pub fn set_serial_data_out(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.control_word_1.set_data_out_mode_bit(DataOutModeBit::Serial);
+        self.control_word_1
+            .set_data_out_mode_bit(DataOutMode::Serial);
         self.update_control_word(self.control_word_1.bits())?;
+
+        // update local state once change is sent to device
+        self.data_out_mode = DataOutMode::Serial;
+
         Ok(())
     }
 
     pub fn set_simultaneous_data_out(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.control_word_1.set_data_out_mode_bit(DataOutModeBit::Simultaneous);
+        self.control_word_1
+            .set_data_out_mode_bit(DataOutMode::Simultaneous);
         self.update_control_word(self.control_word_1.bits())?;
+
+        // update local state once change is sent to device
+        self.data_out_mode = DataOutMode::Simultaneous;
+
         Ok(())
     }
 
     fn update_control_word(&mut self, control_word: u8) -> Result<(), Hcms29xxError<PinErr>> {
-        // read current data out mode before potentially changing it
-        let times_to_send = if (self.control_word_1 & control::control_word_1::DATA_OUT_BIT) != 0
-        {
-            1
+        let times_to_send = if self.data_out_mode == DataOutMode::Serial {
+            NUM_CHARS as u8 / control_word::DEVICE_CHARS as u8
         } else {
-            NUM_CHARS as u8 / control::DEVICE_CHARS as u8
+            1
         };
 
         self.set_control_data()?;
@@ -317,12 +329,6 @@ where
             self.send_byte(control_word)?;
         }
         self.end_transfer()?;
-
-        if (control_word & control::CONTROL_WORD_SELECT_BIT) != 0 {
-            self.control_word_1 = control_word;
-        } else {
-            self.control_word_0 = control_word;
-        }
 
         Ok(())
     }
