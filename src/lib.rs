@@ -1,11 +1,9 @@
 #![no_std]
 
-pub mod constants;
+pub mod control;
 mod font5x7;
 
-// local crate
-use constants::control_word_0::current;
-
+use crate::control::*;
 use core::cell::RefCell;
 use embedded_hal::digital::{ErrorType, OutputPin};
 
@@ -46,8 +44,9 @@ pub struct Hcms29xx<
     blank: Option<RefCell<BlankPin>>,
     osc_sel: Option<RefCell<OscSelPin>>,
     reset: Option<RefCell<ResetPin>>,
-    control_word_0: u8,
-    control_word_1: u8,
+    control_word_0: ControlWord0,
+    control_word_1: ControlWord1,
+    data_out_mode: DataOutModeBit, // we keep track of just this to avoid more bookkeeping when updating local state of control word before updating
     font_ascii_start_index: u8,
 }
 
@@ -124,8 +123,9 @@ where
             blank: blank_ref_cell,
             osc_sel: osc_sel_ref_cell,
             reset: reset_ref_cell,
-            control_word_0: 0,
-            control_word_1: 0,
+            control_word_0: ControlWord0::new(),
+            control_word_1: ControlWord1::new(),
+            data_out_mode: DataOutModeBit::Serial,
             font_ascii_start_index: font5x7::FONT5X7.load_at(0) - 1,
         })
     }
@@ -134,12 +134,12 @@ where
         self.clear()?;
 
         self.update_control_word(
-            constants::control_word_0::WAKE_BIT
-                | constants::control_word_0::DEFAULT_CURRENT
-                | constants::control_word_0::DEFAULT_BRIGHTNESS,
+            control::control_word_0::WAKE_BIT
+                | control::control_word_0::DEFAULT_CURRENT
+                | control::control_word_0::DEFAULT_BRIGHTNESS,
         )?;
         self.update_control_word(
-            constants::CONTROL_WORD_SELECT_BIT | constants::control_word_1::DEFAULT_DATA_OUT_MODE,
+            control::CONTROL_WORD_SELECT_BIT | control::control_word_1::DEFAULT_DATA_OUT_MODE,
         )?;
 
         Ok(())
@@ -147,7 +147,7 @@ where
 
     pub fn clear(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
-        for _ in 0..NUM_CHARS * constants::CHAR_WIDTH {
+        for _ in 0..NUM_CHARS * control::CHAR_WIDTH {
             self.send_byte(0x00)?;
         }
         self.end_transfer()?;
@@ -161,8 +161,8 @@ where
                 break;
             }
             let char_start_index: usize =
-                (c_str[i] - self.font_ascii_start_index) as usize * constants::CHAR_WIDTH;
-            for j in 0..constants::CHAR_WIDTH {
+                (c_str[i] - self.font_ascii_start_index) as usize * control::CHAR_WIDTH;
+            for j in 0..control::CHAR_WIDTH {
                 self.send_byte(font5x7::FONT5X7.load_at(char_start_index + j))?;
             }
         }
@@ -187,6 +187,22 @@ where
         Ok(())
     }
 
+    // pub fn print_raw(&mut self, raw: &[u8]) -> Result<(), Hcms29xxError<PinErr>> {
+    //     self.set_dot_data()?;
+    //     for i in 0..NUM_CHARS {
+    //         if i >= raw.len() {
+    //             break;
+    //         }
+    //         self.send_byte(raw[i])?;
+    //     }
+    //     self.end_transfer()?;
+    //     Ok(())
+    // }
+
+    //pub fn print_signed_int
+
+    //pub fn print_u16
+
     pub fn display_blank(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref blank) = self.blank {
             blank
@@ -200,12 +216,14 @@ where
     }
 
     pub fn display_sleep(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.update_control_word(self.control_word_0 & !constants::control_word_0::WAKE_BIT)?;
+        self.control_word_0.set_wake_bit(SleepMode::Sleep);
+        self.update_control_word(self.control_word_0.bits())?;
         Ok(())
     }
 
     pub fn display_wake(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.update_control_word(self.control_word_0 | constants::control_word_0::WAKE_BIT)?;
+        self.control_word_0.set_wake_bit(SleepMode::Normal);
+        self.update_control_word(self.control_word_0.bits())?;
         Ok(())
     }
 
@@ -238,25 +256,14 @@ where
     }
 
     pub fn set_brightness(&mut self, brightness: u8) -> Result<(), Hcms29xxError<PinErr>> {
-        self.update_control_word(
-            (self.control_word_0 & !constants::control_word_0::BRIGHTNESS_MASK)
-                | (brightness & constants::control_word_0::BRIGHTNESS_MASK),
-        )?;
+        self.control_word_0.set_brightness_bits(brightness);
+        self.update_control_word(self.control_word_0.bits())?;
         Ok(())
     }
 
-    pub fn set_current(&mut self, current: u8) -> Result<(), Hcms29xxError<PinErr>> {
-        let current = match current {
-            0 => current::MAX_4_0MA,
-            1 => current::MAX_6_4MA,
-            2 => current::MAX_9_3MA,
-            _ => current::MAX_12_8MA,
-        };
-
-        self.update_control_word(
-            (self.control_word_0 & !constants::control_word_0::CURRENT_MASK)
-                | (current & constants::control_word_0::CURRENT_MASK),
-        )?;
+    pub fn set_peak_current(&mut self, current: PeakCurrent) -> Result<(), Hcms29xxError<PinErr>> {
+        self.control_word_0.set_peak_current_bits(current);
+        self.update_control_word(self.control_word_0.bits())?;
         Ok(())
     }
 
@@ -285,22 +292,24 @@ where
     }
 
     pub fn set_serial_data_out(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.update_control_word(self.control_word_1 & !constants::control_word_1::DATA_OUT_BIT)?;
+        self.control_word_1.set_data_out_mode_bit(DataOutModeBit::Serial);
+        self.update_control_word(self.control_word_1.bits())?;
         Ok(())
     }
 
     pub fn set_simultaneous_data_out(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-        self.update_control_word(self.control_word_1 | constants::control_word_1::DATA_OUT_BIT)?;
+        self.control_word_1.set_data_out_mode_bit(DataOutModeBit::Simultaneous);
+        self.update_control_word(self.control_word_1.bits())?;
         Ok(())
     }
 
     fn update_control_word(&mut self, control_word: u8) -> Result<(), Hcms29xxError<PinErr>> {
         // read current data out mode before potentially changing it
-        let times_to_send = if (self.control_word_1 & constants::control_word_1::DATA_OUT_BIT) != 0
+        let times_to_send = if (self.control_word_1 & control::control_word_1::DATA_OUT_BIT) != 0
         {
             1
         } else {
-            NUM_CHARS as u8 / constants::DEVICE_CHARS as u8
+            NUM_CHARS as u8 / control::DEVICE_CHARS as u8
         };
 
         self.set_control_data()?;
@@ -309,7 +318,7 @@ where
         }
         self.end_transfer()?;
 
-        if (control_word & constants::CONTROL_WORD_SELECT_BIT) != 0 {
+        if (control_word & control::CONTROL_WORD_SELECT_BIT) != 0 {
             self.control_word_1 = control_word;
         } else {
             self.control_word_0 = control_word;
