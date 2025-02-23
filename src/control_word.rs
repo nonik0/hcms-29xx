@@ -5,7 +5,7 @@ pub const DEVICE_CHARS: usize = 4;
 pub struct ControlWord0(u8);
 
 impl ControlWord0 {
-    pub const WORD_SELECT_BIT: u8 = 0b1000_0000; // MSB is 1 for control word 1
+    pub const WORD_SELECT_BIT: u8 = 0b0000_0000; // MSB is 1 for control word 1
     pub const WAKE_BIT: u8 = 0b0100_0000;
     pub const PEAK_CURRENT_MASK: u8 = 0b0011_0000;
     pub const BRIGHTNESS_MASK: u8 = 0b0000_1111;

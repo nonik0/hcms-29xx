@@ -181,6 +181,9 @@ where
 
         let mut minus = value < 0;
         let mut value = value;
+        if minus {
+            value = -value;
+        }
         for index in (0..NUM_CHARS).rev() {
             buf[index] = if value > 0 {
                 let digit = b'0' + (value % 10) as u8;
