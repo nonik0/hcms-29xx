@@ -151,14 +151,14 @@ where
         Ok(())
     }
 
-    pub fn print_c_string(&mut self, c_str: &[u8]) -> Result<(), Hcms29xxError<PinErr>> {
+    pub fn print_ascii_bytes(&mut self, bytes: &[u8]) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
         for i in 0..NUM_CHARS {
-            if i >= c_str.len() || c_str[i] < self.font_ascii_start_index {
+            if i >= bytes.len() || bytes[i] < self.font_ascii_start_index {
                 break;
             }
             let char_start_index: usize =
-                (c_str[i] - self.font_ascii_start_index) as usize * control_word::CHAR_WIDTH;
+                (bytes[i] - self.font_ascii_start_index) as usize * control_word::CHAR_WIDTH;
             for j in 0..control_word::CHAR_WIDTH {
                 self.send_byte(font5x7::FONT5X7.load_at(char_start_index + j))?;
             }
@@ -167,38 +167,54 @@ where
         Ok(())
     }
 
-    pub fn print_u32(&mut self, value: u32) -> Result<(), Hcms29xxError<PinErr>> {
-        let mut buf = [0; 10]; // u32 max base-10 digits
+    pub fn print_cols(&mut self, cols: &[u8]) -> Result<(), Hcms29xxError<PinErr>> {
+        self.set_dot_data()?;
+        for &byte in cols {
+            self.send_byte(byte)?;
+        }
+        self.end_transfer()?;
+        Ok(())
+    }
 
+    pub fn print_i32(&mut self, value: i32) -> Result<(), Hcms29xxError<PinErr>> {
+        let mut buf = [0; 11]; // i32 max 11 base-10 digits
+
+        let mut minus = value < 0;
         let mut value = value;
         for index in (0..NUM_CHARS).rev() {
             buf[index] = if value > 0 {
-                (b'0' + (value % 10) as u8) as u8
+                let digit = b'0' + (value % 10) as u8;
+                value /= 10;
+                digit
+            } else if minus {
+                minus = false;
+                b'-'
             } else {
-                b' ' as u8
+                b' '
             };
-            value /= 10;
         }
-        self.print_c_string(&buf[..NUM_CHARS])?;
+        self.print_ascii_bytes(&buf[..NUM_CHARS])?;
 
         Ok(())
     }
 
-    // pub fn print_raw(&mut self, raw: &[u8]) -> Result<(), Hcms29xxError<PinErr>> {
-    //     self.set_dot_data()?;
-    //     for i in 0..NUM_CHARS {
-    //         if i >= raw.len() {
-    //             break;
-    //         }
-    //         self.send_byte(raw[i])?;
-    //     }
-    //     self.end_transfer()?;
-    //     Ok(())
-    // }
+    pub fn print_u32(&mut self, value: u32) -> Result<(), Hcms29xxError<PinErr>> {
+        let mut buf = [0; 10]; // u32 max 10 base-10 digits
 
-    //pub fn print_signed_int
+        let mut value = value;
+        for index in (0..NUM_CHARS).rev() {
+            buf[index] = if value > 0 {
+                let digit = b'0' + (value % 10) as u8;
+                value /= 10;
+                digit
+            } else {
+                b' '
+            };
+        }
+        self.print_ascii_bytes(&buf[..NUM_CHARS])?;
 
-    //pub fn print_u16
+        Ok(())
+    }
 
     pub fn display_blank(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         if let Some(ref blank) = self.blank {
