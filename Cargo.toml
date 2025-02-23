@@ -13,16 +13,3 @@ readme = "README.md"
 [dependencies]
 embedded-hal = "1.0.0"
 avr-progmem = { version = "0.4.0", optional = true }
-
-# The latest releases of `proc-macro2` do not support the rust toolchain that
-# we use.  Thus, we must fix this dependency to an older version where our
-# toolchain is still supported.  See https://github.com/Rahix/avr-hal/issues/537
-[build-dependencies.proc-macro2]
-version = "=1.0.79"
-
-#[[example]]
-#name = "arduino-uno"
-
-#[dev-dependencies.arduino-hal]
-#path = "../../arduino-hal/"
-#features = ["arduino-uno"]
