@@ -1,6 +1,5 @@
 #![no_std]
 
-
 mod control_word;
 mod font5x7;
 
@@ -127,27 +126,21 @@ where
             blank: blank_ref_cell,
             osc_sel: osc_sel_ref_cell,
             reset: reset_ref_cell,
-            control_word_0: ControlWord0::new(),
-            control_word_1: ControlWord1::new(),
+            control_word_0: ControlWord0::default(),
+            control_word_1: ControlWord1::default(),
             data_out_mode: DataOutMode::Serial,
             font_ascii_start_index: font5x7::FONT5X7.load_at(0) - 1,
         })
     }
 
-    // pub fn begin(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
-    //     self.clear()?;
+    pub fn begin(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+        self.clear()?;
 
-    //     self.update_control_word(
-    //         control::control_word_0::WAKE_BIT
-    //             | control::control_word_0::DEFAULT_CURRENT
-    //             | control::control_word_0::DEFAULT_BRIGHTNESS,
-    //     )?;
-    //     self.update_control_word(
-    //         control::CONTROL_WORD_SELECT_BIT | control::control_word_1::DEFAULT_DATA_OUT_MODE,
-    //     )?;
+        self.update_control_word(self.control_word_0.bits())?;
+        self.update_control_word(self.control_word_1.bits())?;
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 
     pub fn clear(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
@@ -268,6 +261,20 @@ where
     pub fn set_peak_current(&mut self, current: PeakCurrent) -> Result<(), Hcms29xxError<PinErr>> {
         self.control_word_0.set_peak_current_bits(current);
         self.update_control_word(self.control_word_0.bits())?;
+        Ok(())
+    }
+
+    pub fn set_ext_osc_prescale_direct(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+        self.control_word_1
+            .set_ext_osc_prescaler_bit(ExtOscPrescaler::Direct);
+        self.update_control_word(self.control_word_1.bits())?;
+        Ok(())
+    }
+
+    pub fn set_ext_osc_prescale_div8(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
+        self.control_word_1
+            .set_ext_osc_prescaler_bit(ExtOscPrescaler::Div8);
+        self.update_control_word(self.control_word_1.bits())?;
         Ok(())
     }
 

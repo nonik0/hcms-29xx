@@ -12,14 +12,6 @@ impl ControlWord0 {
     pub const BRIGHTNESS_MASK: u8 = 0b0000_1111;
     pub const BRIGHTNESS_DEFAULT: u8 = 0b0000_1100;
 
-    pub fn new() -> Self {
-        let mut word = ControlWord0(Self::WORD_SELECT_BIT); // MSB is always 0
-        word.set_brightness_bits(Self::BRIGHTNESS_DEFAULT);
-        word.set_peak_current_bits(PeakCurrent::default());
-        word.set_wake_bit(SleepMode::default());
-        word
-    }
-
     pub fn set_brightness_bits(&mut self, brightness: u8) {
         // just truncate the bits rather than enforce or check for a max value
         self.0 = (self.0 & !Self::BRIGHTNESS_MASK) | (brightness & Self::BRIGHTNESS_MASK);
@@ -35,6 +27,16 @@ impl ControlWord0 {
 
     pub fn bits(&self) -> u8 {
         self.0
+    }
+}
+
+impl Default for ControlWord0 {
+    fn default() -> Self {
+        let mut control_word = ControlWord0(Self::WORD_SELECT_BIT); // MSB is always 0
+        control_word.set_brightness_bits(Self::BRIGHTNESS_DEFAULT);
+        control_word.set_peak_current_bits(PeakCurrent::default());
+        control_word.set_wake_bit(SleepMode::default());
+        control_word
     }
 }
 
@@ -57,12 +59,6 @@ pub enum PeakCurrent {
     Max12_8Ma = 0b0011_0000,
 }
 
-// impl PeakCurrent {
-//     pub fn bitmask(&self) -> u8 {
-//         *self as u8
-//     }
-// }
-
 impl Default for PeakCurrent {
     fn default() -> Self {
         PeakCurrent::Max12_8Ma
@@ -77,13 +73,6 @@ impl ControlWord1 {
     pub const DATA_OUT_BIT: u8 = 0b0000_0001;
     pub const EXT_OSC_PRESCALER_BIT: u8 = 0b0000_0010;
 
-    pub fn new() -> Self {
-        let mut word = ControlWord1(Self::WORD_SELECT_BIT);
-        word.set_data_out_mode_bit(DataOutMode::default());
-        word.set_ext_osc_prescaler_bit(ExtOscPrescaler::default());
-        word
-    }
-
     pub fn set_data_out_mode_bit(&mut self, bit: DataOutMode) {
         self.0 = (self.0 & !Self::DATA_OUT_BIT) | (bit as u8);
     }
@@ -94,6 +83,15 @@ impl ControlWord1 {
 
     pub fn bits(&self) -> u8 {
         self.0
+    }
+}
+
+impl Default for ControlWord1 {
+    fn default() -> Self {
+        let mut control_word = ControlWord1(Self::WORD_SELECT_BIT);
+        control_word.set_data_out_mode_bit(DataOutMode::default());
+        control_word.set_ext_osc_prescaler_bit(ExtOscPrescaler::default());
+        control_word
     }
 }
 
@@ -111,12 +109,12 @@ impl Default for DataOutMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtOscPrescaler {
-    Clock1 = 0b0000_0000,
-    Clock8 = 0b0000_0001,
+    Direct = 0b0000_0000,
+    Div8 = 0b0000_0001,
 }
 
 impl Default for ExtOscPrescaler {
     fn default() -> Self {
-        ExtOscPrescaler::Clock1
+        ExtOscPrescaler::Direct
     }
 }
