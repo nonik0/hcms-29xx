@@ -128,8 +128,11 @@ where
             reset: reset_ref_cell,
             control_word_0: ControlWord0::default(),
             control_word_1: ControlWord1::default(),
-            data_out_mode: DataOutMode::Serial,
+            data_out_mode: DataOutMode::Serial,                
+            #[cfg(feature = "avr-progmem")]
             font_ascii_start_index: font5x7::FONT5X7.load_at(0) - 1,
+            #[cfg(not(feature = "avr-progmem"))]
+            font_ascii_start_index: font5x7::FONT5X7[0] - 1,
         })
     }
 
@@ -157,10 +160,13 @@ where
             if i >= bytes.len() || bytes[i] < self.font_ascii_start_index {
                 break;
             }
-            let char_start_index: usize =
+            let char_index: usize =
                 (bytes[i] - self.font_ascii_start_index) as usize * control_word::CHAR_WIDTH;
-            for j in 0..control_word::CHAR_WIDTH {
-                self.send_byte(font5x7::FONT5X7.load_at(char_start_index + j))?;
+            for col in 0..control_word::CHAR_WIDTH {
+                #[cfg(feature = "avr-progmem")]
+                self.send_byte(font5x7::FONT5X7.load_at(char_index + col))?;
+                #[cfg(not(feature = "avr-progmem"))]
+                self.send_byte(font5x7::FONT5X7[char_index + col])?;
             }
         }
         self.end_transfer()?;
@@ -175,7 +181,7 @@ where
         self.end_transfer()?;
         Ok(())
     }
-
+    
     pub fn print_i32(&mut self, value: i32) -> Result<(), Hcms29xxError<PinErr>> {
         let mut buf = [0; 11]; // i32 max 11 base-10 digits
 
