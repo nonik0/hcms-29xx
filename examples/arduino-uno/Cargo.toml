@@ -1,9 +1,8 @@
 [package]
 name    = "arduino-uno"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Nick Brown <nick@altonimb.us>"]
 edition = "2021"
-panic = "abort"
 
 [[bin]]
 name = "arduino-uno"
@@ -25,3 +24,15 @@ features = ["arduino-uno"]
 
 [build-dependencies.proc-macro2]
 version = "=1.0.79"
+
+[profile.dev]
+panic = "abort"
+lto = true
+opt-level = "s"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+debug = true
+lto = true
+opt-level = "s"

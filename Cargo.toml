@@ -1,8 +1,7 @@
 [workspace]
-members = [
-    "examples/arduino-uno",
-    "examples/esp32-s3",
-]
+members = [ "examples/esp32-s3" ]
+# TODO: workaround issue with proc-macro version conflict (also see https://github.com/Rahix/avr-hal/pull/634)
+exclude = [ "examples/arduino-uno" ] 
 
 [package]
 name = "hcms-29xx"
@@ -21,7 +20,6 @@ autobins = false # needed to override for examples with own manifest files
 embedded-hal = "1.0.0"
 avr-progmem = { version = "0.4.0", optional = true }
 
-# TODO: workaround issue with proc-macro version conflict (also see https://github.com/Rahix/avr-hal/pull/634)
 #[[example]]
 #name = "arduino-uno"
 #path = "examples/arduino-uno/src/main.rs"
@@ -29,15 +27,3 @@ avr-progmem = { version = "0.4.0", optional = true }
 [[example]]
 name = "esp32-s3"
 path = "examples/esp32-s3/src/main.rs"   
-
-[profile.dev]
-opt-level = "s"
-
-#[profile.release]
-#codegen-units    = 1
-#debug            = 2
-#debug-assertions = false
-#incremental      = false
-#lto              = 'fat'
-#opt-level        = 's'
-#overflow-checks  = false
