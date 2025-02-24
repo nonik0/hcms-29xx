@@ -1,11 +1,12 @@
 [package]
-edition = "2021"
-name    = "esp32s3"
+name    = "esp32-s3"
 version = "0.1.0"
+authors = ["Nick Brown <nick@altonimb.us>"]
+edition = "2021"
 
 [[bin]]
-name = "esp32s3"
-path = "./src/bin/main.rs"
+name = "esp32-s3"
+path = "src/bin/main.rs"
 
 [dependencies]
 critical-section = "1.2.0"
@@ -17,7 +18,6 @@ esp-backtrace = { version = "0.15.0", features = [
 ] }
 esp-hal = { version = "0.23.1", features = ["esp32s3", "unstable"] }
 esp-println = { version = "0.13.0", features = ["esp32s3", "log"] }
+hcms-29xx = { path = "../.." }
 log = { version = "0.4.21" }
 
-[dependencies.hcms-29xx]
-path = "../.."

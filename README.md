@@ -29,6 +29,4 @@ For AVR targets:
 hcms-29xx { "0.1.0", features=["avr-progmem"] }
 
 ## TODO
-- [ ] Arduino Uno sample
-- [ ] Test on other hardware, add feature flags if needed for specific functionality (e.g. progmem for AVR)
 - [ ] Katakana font
