@@ -1,6 +1,3 @@
-pub const CHAR_WIDTH: usize = 5;
-pub const DEVICE_CHARS: usize = 4;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ControlWord0(u8);
 

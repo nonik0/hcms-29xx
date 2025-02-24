@@ -4,10 +4,12 @@ mod control_word;
 mod font5x7;
 
 pub use control_word::PeakCurrent;
-
 use control_word::*;
 use core::cell::RefCell;
 use embedded_hal::digital::{ErrorType, OutputPin};
+
+pub const CHAR_WIDTH: usize = 5;
+const DEVICE_CHARS: u8 = 4;
 
 #[derive(Debug)]
 pub enum Hcms29xxError<PinErr> {
@@ -128,7 +130,7 @@ where
             reset: reset_ref_cell,
             control_word_0: ControlWord0::default(),
             control_word_1: ControlWord1::default(),
-            data_out_mode: DataOutMode::Serial,                
+            data_out_mode: DataOutMode::Serial,
             #[cfg(feature = "avr-progmem")]
             font_ascii_start_index: font5x7::FONT5X7.load_at(0) - 1,
             #[cfg(not(feature = "avr-progmem"))]
@@ -147,7 +149,7 @@ where
 
     pub fn clear(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
         self.set_dot_data()?;
-        for _ in 0..NUM_CHARS * control_word::CHAR_WIDTH {
+        for _ in 0..NUM_CHARS * CHAR_WIDTH {
             self.send_byte(0x00)?;
         }
         self.end_transfer()?;
@@ -161,8 +163,8 @@ where
                 break;
             }
             let char_index: usize =
-                (bytes[i] - self.font_ascii_start_index) as usize * control_word::CHAR_WIDTH;
-            for col in 0..control_word::CHAR_WIDTH {
+                (bytes[i] - self.font_ascii_start_index) as usize * CHAR_WIDTH;
+            for col in 0..CHAR_WIDTH {
                 #[cfg(feature = "avr-progmem")]
                 self.send_byte(font5x7::FONT5X7.load_at(char_index + col))?;
                 #[cfg(not(feature = "avr-progmem"))]
@@ -181,7 +183,7 @@ where
         self.end_transfer()?;
         Ok(())
     }
-    
+
     pub fn print_i32(&mut self, value: i32) -> Result<(), Hcms29xxError<PinErr>> {
         let mut buf = [0; 11]; // i32 max 11 base-10 digits
 
@@ -351,7 +353,7 @@ where
 
     fn update_control_word(&mut self, control_word: u8) -> Result<(), Hcms29xxError<PinErr>> {
         let times_to_send = if self.data_out_mode == DataOutMode::Serial {
-            NUM_CHARS as u8 / control_word::DEVICE_CHARS as u8
+            NUM_CHARS as u8 / DEVICE_CHARS as u8
         } else {
             1
         };
