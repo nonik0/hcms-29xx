@@ -1,5 +1,4 @@
 #![no_std]
-//#![feature(specialization)]
 
 mod control_word;
 mod font5x7;
@@ -7,10 +6,26 @@ mod font5x7;
 pub use control_word::PeakCurrent;
 use control_word::*;
 use core::cell::RefCell;
-use embedded_hal::digital::{Error, ErrorKind, ErrorType, OutputPin};
+use embedded_hal::digital::{ErrorType, OutputPin};
 
 pub const CHAR_WIDTH: usize = 5;
 const DEVICE_CHARS: u8 = 4;
+
+pub struct UnconfiguredPin;
+
+impl OutputPin for UnconfiguredPin {
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
+impl ErrorType for UnconfiguredPin {
+    type Error = core::convert::Infallible;
+}
 
 #[derive(Debug)]
 pub enum Hcms29xxError<PinErr> {
@@ -22,34 +37,6 @@ pub enum Hcms29xxError<PinErr> {
     BlankPinError(PinErr),
     OscSelPinError(PinErr),
     ResetPinError(PinErr),
-}
-
-#[derive(Debug)]
-pub enum PinError {
-    PinNotConfigured,
-}
-
-impl Error for PinError {
-    fn kind(&self) -> ErrorKind {
-        ErrorKind::Other
-    }
-}
-
-// TODO: try specialization when stable soe pin configuration bugs fail to compile
-pub struct UnconfiguredPin;
-
-impl ErrorType for UnconfiguredPin {
-    type Error = PinError;
-}
-
-impl OutputPin for UnconfiguredPin {
-    fn set_high(&mut self) -> Result<(), Self::Error> {
-        Err(PinError::PinNotConfigured)
-    }
-
-    fn set_low(&mut self) -> Result<(), Self::Error> {
-        Err(PinError::PinNotConfigured)
-    }
 }
 
 pub struct Hcms29xx<
@@ -109,22 +96,17 @@ where
         rs: RsPin,
         clk: ClkPin,
         ce: CePin,
-        blank: Option<BlankPin>,
-        osc_sel: Option<OscSelPin>,
-        reset: Option<ResetPin>,
-    ) -> Result<Self, Hcms29xxError<PinErr>>
-    where
-        BlankPin: OutputPin + ErrorType<Error = PinErr>,
-        OscSelPin: OutputPin + ErrorType<Error = PinErr>,
-        ResetPin: OutputPin + ErrorType<Error = PinErr>,
-    {
+        blank: BlankPin,
+        osc_sel: OscSelPin,
+        reset: ResetPin,
+    ) -> Result<Self, Hcms29xxError<PinErr>> {
         let data_ref_cell = RefCell::new(data);
         let rs_ref_cell = RefCell::new(rs);
         let clk_ref_cell = RefCell::new(clk);
         let ce_ref_cell = RefCell::new(ce);
-        let blank_ref_cell = RefCell::new(blank.unwrap());
-        let osc_sel_ref_cell = RefCell::new(osc_sel.unwrap());
-        let reset_ref_cell = RefCell::new(reset.unwrap());
+        let blank_ref_cell = RefCell::new(blank);
+        let osc_sel_ref_cell = RefCell::new(osc_sel);
+        let reset_ref_cell = RefCell::new(reset);
 
         data_ref_cell
             .borrow_mut()
@@ -134,25 +116,19 @@ where
             .borrow_mut()
             .set_high()
             .map_err(Hcms29xxError::CePinError)?;
-        // if let Some(ref blank) = blank_ref_cell {
-        //     blank
-        //         .borrow_mut()
-        //         .set_high()
-        //         .map_err(Hcms29xxError::BlankPinError)?;
-        // }
-        // // default to internal oscillator, user can set ext osc if needed
-        // if let Some(ref osc_sel) = osc_sel_ref_cell {
-        //     osc_sel
-        //         .borrow_mut()
-        //         .set_high()
-        //         .map_err(Hcms29xxError::OscSelPinError)?;
-        // }
-        // if let Some(ref reset) = reset_ref_cell {
-        //     reset
-        //         .borrow_mut()
-        //         .set_high()
-        //         .map_err(Hcms29xxError::ResetPinError)?;
-        // }
+        blank_ref_cell
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::BlankPinError)?;
+        // default to internal oscillator, user can set ext osc if needed
+        osc_sel_ref_cell
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::OscSelPinError)?;
+        reset_ref_cell
+            .borrow_mut()
+            .set_high()
+            .map_err(Hcms29xxError::ResetPinError)?;
 
         Ok(Hcms29xx {
             data: data_ref_cell,
