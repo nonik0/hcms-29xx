@@ -18,9 +18,10 @@ fn main() -> ! {
         pins.d3.into_output(),       // RS pin
         pins.d4.into_output(),       // Clock pin
         pins.d5.into_output(),       // CE pin
-        Some(pins.d6.into_output()), // Optional: Blank pin
-        Some(pins.d7.into_output()), // Optional: OscSel pin
-        Some(pins.d8.into_output()), // Optional: Reset pin
+        // if optional pins not specified, logic levels should set in elsewhere
+        None, // Optional: Blank pin
+        None, // Optional: OscSel pin
+        None, // Optional: Reset pin
     )
     .unwrap();
 

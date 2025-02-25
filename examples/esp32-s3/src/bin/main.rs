@@ -26,10 +26,10 @@ fn main() -> ! {
         Output::new(peripherals.GPIO37, Level::Low), // RS pin
         Output::new(peripherals.GPIO36, Level::Low), // Clock pin
         Output::new(peripherals.GPIO34, Level::Low), // CE pin
-        // optional pins logic levels set in hardware
-        Some(Output::new(peripherals.GPIO2, Level::Low)), // CE pin,
-        Some(Output::new(peripherals.GPIO3, Level::Low)), // CE pin,
-        Some(Output::new(peripherals.GPIO4, Level::Low)), // CE pin,
+        // if optional pins not specified, logic levels should set in elsewhere
+        None, // Optional: Blank pin
+        None, // Optional: OscSel pin
+        None, // Optional: Reset pin
     )
     .unwrap();
     display.begin().unwrap();
