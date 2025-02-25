@@ -21,7 +21,7 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     let delay = Delay::new();
-    let mut display = hcms_29xx::Hcms29xx::<_, _, _, _, _, _, _, NUM_CHARS>::new(
+    let mut display = hcms_29xx::Hcms29xx::<NUM_CHARS, _, _, _, _, _, _, _>::new(
         Output::new(peripherals.GPIO35, Level::Low), // Data pin
         Output::new(peripherals.GPIO37, Level::Low), // RS pin
         Output::new(peripherals.GPIO36, Level::Low), // Clock pin
