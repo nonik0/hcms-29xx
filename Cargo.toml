@@ -11,7 +11,7 @@ authors = ["Nick Brown <nick@altonimb.us>"]
 categories = ["embedded", "no-std"]
 description = "Platform agnostic driver for HCMS-29XX and HCMS-39XX display ICs"
 keywords = ["embedded-hal-driver", "no-std"]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/nonik0/hcms-29xx"
 readme = "README.md"
 autobins = false # needed to override for examples with own manifest files
@@ -19,11 +19,3 @@ autobins = false # needed to override for examples with own manifest files
 [dependencies]
 embedded-hal = "1.0.0"
 avr-progmem = { version = "0.4.0", optional = true }
-
-#[[example]]
-#name = "arduino-uno"
-#path = "examples/arduino-uno/src/main.rs"
-
-[[example]]
-name = "esp32-s3"
-path = "examples/esp32-s3/src/bin/main.rs"   
