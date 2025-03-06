@@ -13,8 +13,8 @@ A platform agnostic driver for [HCMS-29XX](https://docs.broadcom.com/doc/HCMS-29
  * Single dependency on embedded-hal v1.0
  * Optional dependency on avr-progmem for AVR targets to store font data in PROGMEM (requires nightly toolchain)
  * Examples for:
-     * Arduino Uno using [avr-hal](https://github.com/Rahix/avr-hal)
-     * ESP32-S3 using [esp-hal](https://github.com/esp-rs/esp-hal)
+     * [Arduino Uno](examples/arduino-uno/), based on [avr-hal](https://github.com/Rahix/avr-hal/)
+     * [ESP32-S3](examples/esp32-s3/), based on [esp-hal](https://github.com/esp-rs/esp-hal)
 
 ## Install
 To install this driver in your project, add the following line to your `Cargo.toml`'s `dependencies` table:
@@ -78,14 +78,6 @@ display.begin().unwrap();
 display.display_unblank().unwrap();
 display.print_ascii_bytes(b"goodbye!").unwrap();
 ```
-
-## Examples
-
-There are currently two included examples:
-- [Arduino Uno](examples/arduino-uno/), based on [avr-hal](https://github.com/Rahix/avr-hal/)
-- [ESP32-S3](examples/esp32-s3/), based on [esp-hal](https://github.com/esp-rs/esp-hal).
-
-Follow the appropriate documentation for each HAL for the prerequisite set up and then simply use cargo to build and/or run each.
 
 ## TODO
 - [ ] Improve generic type interface, e.g. UnconfiguredPin improvements, better constructor, etc.

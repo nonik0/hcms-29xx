@@ -8,6 +8,7 @@ use control_word::*;
 use core::cell::RefCell;
 use embedded_hal::digital::{ErrorType, OutputPin};
 
+pub const CHAR_HEIGHT: usize = 7;
 pub const CHAR_WIDTH: usize = 5;
 const DEVICE_CHARS: u8 = 4;
 
@@ -146,6 +147,18 @@ where
             #[cfg(not(feature = "avr-progmem"))]
             font_ascii_start_index: font5x7::FONT5X7[0] - 1,
         })
+    }
+
+    pub fn destroy(self) -> (DataPin, RsPin, ClkPin, CePin, BlankPin, OscSelPin, ResetPin) {
+        (
+            self.data.into_inner(),
+            self.rs.into_inner(),
+            self.clk.into_inner(),
+            self.ce.into_inner(),
+            self.blank.into_inner(),
+            self.osc_sel.into_inner(),
+            self.reset.into_inner(),
+        )
     }
 
     pub fn begin(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
