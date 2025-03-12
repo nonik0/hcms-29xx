@@ -7,7 +7,7 @@
 [![lint](https://github.com/nonik0/hcms-29xx/actions/workflows/lint.yml/badge.svg)](https://github.com/nonik0/hcms-29xx/actions/workflows/lint.yml)
 [![build](https://github.com/nonik0/hcms-29xx/actions/workflows/build.yml/badge.svg)](https://github.com/nonik0/hcms-29xx/actions/workflows/build.yml)
 
-A platform agnostic driver for [HCMS-29XX](https://docs.broadcom.com/doc/HCMS-29xx-Series-High-Performance-CMOS-5-x-7-Alphanumeric-Displays) and [HCMS-39XX](https://docs.broadcom.com/doc/AV02-0868EN) display ICs. Many thanks to @Andy4495's existing [HCMS39xx](https://github.com/Andy4495/HCMS39xx) Arduino/C++ library, which I used as a reference implementation as well as for the font data.
+A platform agnostic driver for [HCMS-29xx](https://docs.broadcom.com/doc/HCMS-29xx-Series-High-Performance-CMOS-5-x-7-Alphanumeric-Displays) and [HCMS-39xx](https://docs.broadcom.com/doc/AV02-0868EN) display ICs. Many thanks to @Andy4495's existing [HCMS39xx](https://github.com/Andy4495/HCMS39xx) Arduino/C++ library, which I used as a reference implementation as well as for the font data.
 
 ## Features:
  * Single dependency on embedded-hal v1.0
@@ -23,7 +23,7 @@ To install this driver in your project, add the following line to your `Cargo.to
 hcms-29xx = "0.1.0"
 ```
 
-For AVR targets:
+For AVR targets:W
 
 ```toml
 hcms-29xx = { "0.1.0", features=["avr-progmem"] }
