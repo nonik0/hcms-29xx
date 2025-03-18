@@ -31,6 +31,7 @@ impl ErrorType for UnconfiguredPin {
 #[derive(Debug)]
 pub enum Hcms29xxError<PinErr> {
     PinNotConfigured,
+    ValueTooLong,
     DataPinError(PinErr),
     RsPinError(PinErr),
     ClkPinError(PinErr),
@@ -207,13 +208,11 @@ where
     }
 
     pub fn print_i32(&mut self, value: i32) -> Result<(), Hcms29xxError<PinErr>> {
-        let mut buf = [0; 11]; // i32 max 11 base-10 digits
+        let mut buf = [b' '; NUM_CHARS];
+        buf[NUM_CHARS - 1] = b'0';
 
         let mut minus = value < 0;
-        let mut value = value;
-        if minus {
-            value = -value;
-        }
+        let mut value = if minus { -value } else { value };
         for index in (0..NUM_CHARS).rev() {
             buf[index] = if value > 0 {
                 let digit = b'0' + (value % 10) as u8;
@@ -223,29 +222,40 @@ where
                 minus = false;
                 b'-'
             } else {
-                b' '
+                break;
             };
         }
-        self.print_ascii_bytes(&buf[..NUM_CHARS])?;
 
+        // unable to print entire value
+        if value > 0 || minus {
+            return Err(Hcms29xxError::ValueTooLong);
+        }
+
+        self.print_ascii_bytes(&buf[..NUM_CHARS])?;
         Ok(())
     }
 
     pub fn print_u32(&mut self, value: u32) -> Result<(), Hcms29xxError<PinErr>> {
-        let mut buf = [0; 10]; // u32 max 10 base-10 digits
+        let mut buf = [b' '; NUM_CHARS];
+        buf[NUM_CHARS - 1] = b'0';
 
         let mut value = value;
         for index in (0..NUM_CHARS).rev() {
-            buf[index] = if value > 0 {
-                let digit = b'0' + (value % 10) as u8;
+            if value > 0 {
+                buf[index] = b'0' + (value % 10) as u8;
                 value /= 10;
-                digit
-            } else {
-                b' '
-            };
+            }
+            else {
+                break;
+            }
         }
-        self.print_ascii_bytes(&buf[..NUM_CHARS])?;
 
+        // unable to print entire value
+        if value > 0 {
+            return Err(Hcms29xxError::ValueTooLong);
+        }
+
+        self.print_ascii_bytes(&buf)?;
         Ok(())
     }
 
