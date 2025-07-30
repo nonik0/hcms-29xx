@@ -19,3 +19,4 @@ autobins = false # needed to override for examples with own manifest files
 [dependencies]
 embedded-hal = "1.0.0"
 avr-progmem = { version = "0.4.0", optional = true }
+num-traits = { version = "0.2.19", default-features = false }

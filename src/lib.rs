@@ -6,7 +6,9 @@ mod font5x7;
 pub use control_word::PeakCurrent;
 use control_word::*;
 use core::cell::RefCell;
+pub use font5x7::FONT5X7;
 use embedded_hal::digital::{ErrorType, OutputPin};
+use num_traits::{Zero, ToPrimitive};
 
 pub const CHAR_HEIGHT: usize = 7;
 pub const CHAR_WIDTH: usize = 5;
@@ -93,6 +95,8 @@ where
     OscSelPin: OutputPin + ErrorType<Error = PinErr>,
     ResetPin: OutputPin + ErrorType<Error = PinErr>,
 {
+    const _ASSERT_MIN_CHARS: () = assert!(NUM_CHARS >= 4, "NUM_CHARS must be at least 4");
+
     pub fn new(
         data: DataPin,
         rs: RsPin,
@@ -144,9 +148,9 @@ where
             control_word_1: ControlWord1::default(),
             data_out_mode: DataOutMode::Serial,
             #[cfg(feature = "avr-progmem")]
-            font_ascii_start_index: font5x7::FONT5X7.load_at(0) - 1,
+            font_ascii_start_index: FONT5X7.load_at(0) - 1,
             #[cfg(not(feature = "avr-progmem"))]
-            font_ascii_start_index: font5x7::FONT5X7[0] - 1,
+            font_ascii_start_index: FONT5X7[0] - 1,
         })
     }
 
@@ -189,9 +193,9 @@ where
             let char_index: usize = (bytes[i] - self.font_ascii_start_index) as usize * CHAR_WIDTH;
             for col in 0..CHAR_WIDTH {
                 #[cfg(feature = "avr-progmem")]
-                self.send_byte(font5x7::FONT5X7.load_at(char_index + col))?;
+                self.send_byte(FONT5X7.load_at(char_index + col))?;
                 #[cfg(not(feature = "avr-progmem"))]
-                self.send_byte(font5x7::FONT5X7[char_index + col])?;
+                self.send_byte(FONT5X7[char_index + col])?;
             }
         }
         self.end_transfer()?;
@@ -207,56 +211,141 @@ where
         Ok(())
     }
 
-    pub fn print_i32(&mut self, value: i32) -> Result<(), Hcms29xxError<PinErr>> {
+    pub fn print_int<T>(&mut self, value: T) -> Result<(), Hcms29xxError<PinErr>> 
+    where
+        T: Copy + Zero + ToPrimitive,
+    {
+        // avoid using 64-bit arithmetic for smaller displays
+        if NUM_CHARS <= 10 {
+            self.print_int_32bit(value)
+        } else {
+            self.print_int_64bit(value)
+        }
+    }
+
+    fn print_int_32bit<T>(&mut self, value: T) -> Result<(), Hcms29xxError<PinErr>>
+    where
+        T: Copy + Zero + ToPrimitive,
+    {
+        const fn max_unsigned_for_chars(chars: usize) -> u32 {
+            let mut power_of_10 = 1u32;
+            let mut i = 0;
+            while i < chars {
+                power_of_10 = power_of_10.saturating_mul(10);
+                i += 1;
+            }
+            power_of_10.saturating_sub(1)
+        }
+
+        const fn max_signed_for_chars(chars: usize) -> i32 {
+            max_unsigned_for_chars(chars - 1) as i32
+        }
+
+        let (mut has_sign, mut value) = if let Some(signed_val) = value.to_i32() {
+            let max_signed = max_signed_for_chars(NUM_CHARS);
+            if signed_val < -max_signed || signed_val > max_signed {
+                return Err(Hcms29xxError::ValueTooLong);
+            }
+            if signed_val < 0 {
+                (true, (-signed_val) as u32)
+            } else {
+                (false, signed_val as u32)
+            }
+        } else if let Some(unsigned_val) = value.to_u32() {
+            let max_unsigned = max_unsigned_for_chars(NUM_CHARS);
+            if unsigned_val > max_unsigned {
+                return Err(Hcms29xxError::ValueTooLong);
+            }
+            (false, unsigned_val)
+        } else {
+            return Err(Hcms29xxError::ValueTooLong);
+        };
+
         let mut buf = [b' '; NUM_CHARS];
         buf[NUM_CHARS - 1] = b'0';
 
-        let mut minus = value < 0;
-        let mut value = if minus { -value } else { value };
         for index in (0..NUM_CHARS).rev() {
             buf[index] = if value > 0 {
                 let digit = b'0' + (value % 10) as u8;
                 value /= 10;
                 digit
-            } else if minus {
-                minus = false;
+            } else if has_sign {
+                has_sign = false;
                 b'-'
             } else {
                 break;
             };
         }
 
-        // unable to print entire value
-        if value > 0 || minus {
-            return Err(Hcms29xxError::ValueTooLong);
-        }
-
-        self.print_ascii_bytes(&buf[..NUM_CHARS])?;
-        Ok(())
+        self.print_ascii_bytes(&buf)
     }
 
-    pub fn print_u32(&mut self, value: u32) -> Result<(), Hcms29xxError<PinErr>> {
+    fn print_int_64bit<T>(&mut self, value: T) -> Result<(), Hcms29xxError<PinErr>>
+    where
+        T: Copy + Zero + ToPrimitive,
+    {
+        const fn max_unsigned_64_for_chars(chars: usize) -> u64 {
+            let mut power_of_10 = 1u64;
+            let mut i = 0;
+            while i < chars {
+                power_of_10 = power_of_10.saturating_mul(10);
+                i += 1;
+            }
+            power_of_10.saturating_sub(1)
+        }
+
+        const fn max_signed_64_for_chars(chars: usize) -> i64 {
+            max_unsigned_64_for_chars(chars - 1) as i64
+        }
+
+
+        let (mut has_sign, mut value) = if let Some(signed_val) = value.to_i64() {
+            let max_signed = max_signed_64_for_chars(NUM_CHARS);
+            if signed_val < -max_signed || signed_val > max_signed {
+                return Err(Hcms29xxError::ValueTooLong);
+            }
+            if signed_val < 0 {
+                (true, (-signed_val) as u64)
+            } else {
+                (false, signed_val as u64)
+            }
+        } else if let Some(unsigned_val) = value.to_u64() {
+            let max_unsigned = max_unsigned_64_for_chars(NUM_CHARS);
+            if unsigned_val > max_unsigned {
+                return Err(Hcms29xxError::ValueTooLong);
+            }
+            (false, unsigned_val)
+        } else {
+            return Err(Hcms29xxError::ValueTooLong);
+        };
+
         let mut buf = [b' '; NUM_CHARS];
         buf[NUM_CHARS - 1] = b'0';
 
-        let mut value = value;
         for index in (0..NUM_CHARS).rev() {
-            if value > 0 {
-                buf[index] = b'0' + (value % 10) as u8;
+            buf[index] = if value > 0 {
+                let digit = b'0' + (value % 10) as u8;
                 value /= 10;
-            }
-            else {
+                digit
+            } else if has_sign {
+                has_sign = false;
+                b'-'
+            } else {
                 break;
-            }
+            };
         }
 
-        // unable to print entire value
-        if value > 0 {
-            return Err(Hcms29xxError::ValueTooLong);
-        }
+        self.print_ascii_bytes(&buf)
+    }
 
-        self.print_ascii_bytes(&buf)?;
-        Ok(())
+    #[deprecated(since = "0.2.0", note = "Use print_int instead")]
+    pub fn print_i32(&mut self, value: i32) -> Result<(), Hcms29xxError<PinErr>> {
+        self.print_int_32bit(value)
+    }
+
+    #[deprecated(since = "0.2.0", note = "Use print_int instead")]
+    pub fn print_u32(&mut self, value: u32) -> Result<(), Hcms29xxError<PinErr>> {
+        self.print_int_32bit(value)
     }
 
     pub fn display_blank(&mut self) -> Result<(), Hcms29xxError<PinErr>> {
