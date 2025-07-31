@@ -6,9 +6,9 @@ mod font5x7;
 pub use control_word::PeakCurrent;
 use control_word::*;
 use core::cell::RefCell;
-pub use font5x7::FONT5X7;
 use embedded_hal::digital::{ErrorType, OutputPin};
-use num_traits::{Zero, ToPrimitive};
+pub use font5x7::FONT5X7;
+use num_traits::{ToPrimitive, Zero};
 
 pub const CHAR_HEIGHT: usize = 7;
 pub const CHAR_WIDTH: usize = 5;
@@ -211,7 +211,7 @@ where
         Ok(())
     }
 
-    pub fn print_int<T>(&mut self, value: T) -> Result<(), Hcms29xxError<PinErr>> 
+    pub fn print_int<T>(&mut self, value: T) -> Result<(), Hcms29xxError<PinErr>>
     where
         T: Copy + Zero + ToPrimitive,
     {
@@ -298,7 +298,6 @@ where
             max_unsigned_64_for_chars(chars - 1) as i64
         }
 
-
         let (mut has_sign, mut value) = if let Some(signed_val) = value.to_i64() {
             let max_signed = max_signed_64_for_chars(NUM_CHARS);
             if signed_val < -max_signed || signed_val > max_signed {
@@ -333,6 +332,91 @@ where
             } else {
                 break;
             };
+        }
+
+        self.print_ascii_bytes(&buf)
+    }
+
+    #[cfg(feature = "print_float")]
+    pub fn print_float<T>(&mut self, value: T, precision: u8) -> Result<(), Hcms29xxError<PinErr>>
+    where
+        T: Copy + ToPrimitive,
+    {
+        let float_val = value.to_f32().ok_or(Hcms29xxError::ValueTooLong)?;
+        let mut buf = [b' '; NUM_CHARS];
+
+        // special values
+        if float_val.is_nan() {
+            buf[(NUM_CHARS - 3)..].copy_from_slice(b"NaN");
+            return self.print_ascii_bytes(&buf);
+        }
+        if float_val.is_infinite() {
+            let inf_str = if float_val.is_sign_positive() {
+                b"+Inf"
+            } else {
+                b"-Inf"
+            };
+            buf[(NUM_CHARS - inf_str.len())..].copy_from_slice(inf_str);
+            return self.print_ascii_bytes(&buf);
+        }
+
+        let is_negative = float_val.is_sign_negative();
+        let abs_val = float_val.abs();
+
+        // check value bounds
+        let integer_digits = if abs_val < 1.0 {
+            1
+        } else {
+            let mut temp = abs_val as u32;
+            let mut digits = 0;
+            while temp > 0 {
+                digits += 1;
+                temp /= 10;
+            }
+            digits
+        };
+        let total_chars = (if is_negative { 1 } else { 0 })
+            + integer_digits
+            + (if precision > 0 { 1 } else { 0 })
+            + precision as usize;
+        if total_chars > NUM_CHARS {
+            return Err(Hcms29xxError::ValueTooLong);
+        }
+
+        // scale number to integer value for formatting
+        let mut pos = NUM_CHARS;
+        let mut scale_factor = 1.0f32;
+        for _ in 0..precision {
+            scale_factor *= 10.0;
+        }
+        let rounded_val = abs_val * scale_factor + 0.5;
+        let mut digits = rounded_val as u32;
+
+        for _ in 0..precision {
+            pos -= 1;
+            buf[pos] = b'0' + (digits % 10) as u8;
+            digits /= 10;
+        }
+
+        if precision > 0 {
+            pos -= 1;
+            buf[pos] = b'.';
+        }
+
+        if digits == 0 {
+            pos -= 1;
+            buf[pos] = b'0';
+        } else {
+            while digits > 0 {
+                pos -= 1;
+                buf[pos] = b'0' + (digits % 10) as u8;
+                digits /= 10;
+            }
+        }
+
+        if is_negative {
+            pos -= 1;
+            buf[pos] = b'-';
         }
 
         self.print_ascii_bytes(&buf)
@@ -454,7 +538,7 @@ where
 
     fn update_control_word(&mut self, control_word: u8) -> Result<(), Hcms29xxError<PinErr>> {
         let times_to_send = if self.data_out_mode == DataOutMode::Serial {
-            NUM_CHARS as u8 / DEVICE_CHARS as u8
+            NUM_CHARS as u8 / DEVICE_CHARS
         } else {
             1
         };

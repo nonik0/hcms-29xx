@@ -36,29 +36,20 @@ impl Default for ControlWord0 {
     }
 }
 
+#[derive(Default)]
 pub enum SleepMode {
     Sleep = 0b0000_0000,
+    #[default]
     Normal = 0b0100_0000,
 }
 
-impl Default for SleepMode {
-    fn default() -> Self {
-        SleepMode::Normal
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PeakCurrent {
     Max4_0Ma = 0b0010_0000,
     Max6_4Ma = 0b0001_0000,
     Max9_3Ma = 0b0000_0000,
+    #[default]
     Max12_8Ma = 0b0011_0000,
-}
-
-impl Default for PeakCurrent {
-    fn default() -> Self {
-        PeakCurrent::Max12_8Ma
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,26 +82,16 @@ impl Default for ControlWord1 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DataOutMode {
+    #[default]
     Serial = 0b0000_0000,
     Simultaneous = 0b0000_0001,
 }
 
-impl Default for DataOutMode {
-    fn default() -> Self {
-        DataOutMode::Serial
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExtOscPrescaler {
+    #[default]
     Direct = 0b0000_0000,
     Div8 = 0b0000_0001,
-}
-
-impl Default for ExtOscPrescaler {
-    fn default() -> Self {
-        ExtOscPrescaler::Direct
-    }
 }

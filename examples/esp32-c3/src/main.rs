@@ -30,10 +30,10 @@ fn main() -> ! {
     let peripherals = esp_hal::init(config);
 
     let mut display = hcms_29xx::Hcms29xx::<NUM_CHARS, _, _, _, _, _>::new(
-        Output::new(peripherals.GPIO35, Level::Low, OutputConfig::default()), // Data pin
-        Output::new(peripherals.GPIO37, Level::Low, OutputConfig::default()), // RS pin
-        Output::new(peripherals.GPIO36, Level::Low, OutputConfig::default()), // Clock pin
-        Output::new(peripherals.GPIO34, Level::Low, OutputConfig::default()), // CE pin
+        Output::new(peripherals.GPIO5, Level::Low, OutputConfig::default()), // Data pin
+        Output::new(peripherals.GPIO6, Level::Low, OutputConfig::default()), // RS pin
+        Output::new(peripherals.GPIO7, Level::Low, OutputConfig::default()), // Clock pin
+        Output::new(peripherals.GPIO8, Level::Low, OutputConfig::default()), // CE pin
         // if optional pins not specified, logic levels should set elsewhere
         UnconfiguredPin, // Optional: Blank pin
         UnconfiguredPin, // Optional: OscSel pin

@@ -31,7 +31,7 @@ fn main() -> ! {
 
     ufmt::uwriteln!(&mut serial, "Counting down from 1000 to 0!").unwrap_infallible();
     for count in (0..1000).rev() {
-        display.print_i32(count).unwrap();
+        display.print_int(count).unwrap();
         arduino_hal::delay_ms(1);
     }
 

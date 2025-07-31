@@ -1,11 +1,11 @@
 [workspace]
-members = [ "examples/esp32-s3" ]
+members = [ "examples/esp32-c3", "examples/esp32-s3" ]
 # TODO: workaround issue with proc-macro version conflict (also see https://github.com/Rahix/avr-hal/pull/634)
 exclude = [ "examples/arduino-uno" ] 
 
 [package]
 name = "hcms-29xx"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Nick Brown <nick@altonimb.us>"]
 categories = ["embedded", "no-std"]
@@ -15,6 +15,11 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/nonik0/hcms-29xx"
 readme = "README.md"
 autobins = false # needed to override for examples with own manifest files
+
+[features]
+default = []
+print_float = []
+avr-progmem = ["dep:avr-progmem"]
 
 [dependencies]
 embedded-hal = "1.0.0"

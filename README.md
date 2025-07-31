@@ -11,22 +11,30 @@ A platform agnostic driver for [HCMS-29xx](https://docs.broadcom.com/doc/HCMS-29
 
 ## Features:
  * Single dependency on embedded-hal v1.0
+ * Support for printing integer values and (optionally) float values
  * Optional dependency on avr-progmem for AVR targets to store font data in PROGMEM (requires nightly toolchain)
  * Examples for:
      * [Arduino Uno](examples/arduino-uno/), based on [avr-hal](https://github.com/Rahix/avr-hal/)
+     * [ESP32-C3](examples/esp32-c3/), based on [esp-hal](https://github.com/esp-rs/esp-hal)
      * [ESP32-S3](examples/esp32-s3/), based on [esp-hal](https://github.com/esp-rs/esp-hal)
 
 ## Install
 To install this driver in your project, add the following line to your `Cargo.toml`'s `dependencies` table:
 
 ```toml
-hcms-29xx = "0.1.0"
+hcms-29xx = "0.2.0"
 ```
 
-For AVR targets:W
+For AVR targets:
 
 ```toml
-hcms-29xx = { "0.1.0", features=["avr-progmem"] }
+hcms-29xx = { version = "0.2.0", features = ["avr-progmem"] }
+```
+
+For projects needing float support (increases binary size, avoid using on MCUs without native float support):
+
+```toml
+hcms-29xx = { version = "0.2.0", features = ["print_float"] }
 ```
 
 ## How to Use
@@ -81,5 +89,4 @@ display.print_ascii_bytes(b"goodbye!").unwrap();
 
 ## TODO
 - [ ] Improve generic type interface, e.g. UnconfiguredPin improvements, better constructor, etc.
-- [ ] Improve function signatures, e.g. generic implementation for integer print functions
 - [ ] Katakana font
