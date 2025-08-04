@@ -408,6 +408,11 @@ where
             buf[pos] = b'0';
         } else {
             while digits > 0 {
+                // possible for rounding to cause overflow
+                if pos == 0 {
+                    return Err(Hcms29xxError::ValueTooLong);
+                }
+
                 pos -= 1;
                 buf[pos] = b'0' + (digits % 10) as u8;
                 digits /= 10;

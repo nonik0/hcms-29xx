@@ -10,7 +10,7 @@
 A platform agnostic driver for [HCMS-29xx](https://docs.broadcom.com/doc/HCMS-29xx-Series-High-Performance-CMOS-5-x-7-Alphanumeric-Displays) and [HCMS-39xx](https://docs.broadcom.com/doc/AV02-0868EN) display ICs. Many thanks to @Andy4495's existing [HCMS39xx](https://github.com/Andy4495/HCMS39xx) Arduino/C++ library, which I used as a reference implementation as well as for the font data.
 
 ## Features:
- * Single dependency on embedded-hal v1.0
+ * Using embedded-hal v1.0 traits for maximum compatibility with embedded platforms
  * Support for printing integer values and (optionally) float values
  * Optional dependency on avr-progmem for AVR targets to store font data in PROGMEM (requires nightly toolchain)
  * Examples for:
